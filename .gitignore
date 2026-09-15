@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Django and local databases
+*.sqlite3-journal
+*.sqlite3-shm
+*.sqlite3-wal
+.pytest_cache/
+media/
+staticfiles/
+
+# Node and Vite
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+npm-debug.log*
+
+# Editors and OS files
+.DS_Store
+.vscode/
+*.swp

@@ -1,0 +1,1648 @@
+RESTAURANT BILL MANAGER — PROJECT PLANNING
+
+==================================================
+PROBLEM STATEMENT
+==================================================
+
+It’s Diwali and the restaurant is slammed. The kitchen has a long menu, and by evening some favourites — the paneer, the special thali — run out and shouldn’t be orderable any more.
+
+On top of that, marketing has four offers running at once:
+
+- Flat ₹50 off
+- 10% off on orders above ₹500, capped at ₹100
+- And other offers
+
+Every bill also needs:
+
+- Packing charge
+- Delivery fee unless it’s a large order
+- GST on top
+
+Everything must add up to the exact paisa.
+
+Right now the cashier is doing this by hand and getting it wrong, customers are arguing at the counter, and everyone wants to see a clear break-up of how the total was reached.
+
+BUILD A PRICING ENGINE THE BILLING SCREEN CAN TRUST.
+
+The messy real-world details are the whole point. The solution must handle each rule correctly.
+
+The intended calculation flow is:
+
+Plain order total
+        ↓
+Offers / discounts
+        ↓
+Fees
+        ↓
+Tax
+        ↓
+Final total
+
+
+==================================================
+PROJECT INFORMATION
+==================================================
+
+Project Name:
+
+Restaurant Bill Manager
+
+Project Description:
+
+This project helps restaurants handle their bills with the latest offers and discounts without any hassle.
+
+Recommended improved description:
+
+Restaurant Bill Manager is a restaurant billing and pricing application that automatically calculates order totals, applies eligible offers, adds applicable fees and GST, and provides a transparent bill breakdown — ensuring accurate billing down to the exact paisa.
+
+
+==================================================
+TECHNOLOGY STACK
+==================================================
+
+Frontend:
+- React
+- TypeScript
+- Vite
+
+Backend:
+- Python
+- Django
+- Django REST Framework
+
+Database:
+- PostgreSQL recommended
+- SQLite can be used during initial local development if needed
+
+Architecture:
+- React frontend
+- Django REST API backend
+- Dedicated backend pricing engine/service layer
+
+Important:
+
+Django is the BACKEND.
+React is the FRONTEND.
+
+
+==================================================
+CORE PROJECT PHILOSOPHY
+==================================================
+
+The project should prioritize:
+
+1. Correctness
+2. Transparency
+3. Flexibility
+4. UI polish
+
+The pricing engine is the most important component.
+
+The billing UI should NOT independently calculate the final price.
+
+Instead:
+
+React
+   ↓
+REST API
+   ↓
+Django
+   ↓
+Pricing Engine
+   ↓
+Detailed Bill
+   ↓
+React displays the result
+
+
+==================================================
+MAJOR MODULES
+==================================================
+
+Restaurant Bill Manager
+
+├── Menu Management
+├── Order Management
+├── Pricing Engine
+├── Offers & Discount Engine
+├── Bill / Invoice
+├── Restaurant Configuration
+└── Testing & Auditability
+
+
+==================================================
+MODULE 1 — MENU MANAGEMENT
+==================================================
+
+The restaurant needs to know what items are currently available.
+
+Features:
+
+- Add menu items
+- Edit menu items
+- Deactivate menu items
+- Set item price
+- Set category
+- Mark item as available/unavailable
+- Search menu
+- Filter menu
+- Display availability
+
+Example:
+
+Item                    Category        Price       Available
+-------------------------------------------------------------
+Paneer Butter Masala    Main Course     ₹280        No
+Special Thali           Thali           ₹450        No
+Dal Tadka               Main Course     ₹180        Yes
+Butter Naan             Bread            ₹60        Yes
+
+Important rule:
+
+If a menu item is unavailable/sold out, it must not be possible to add it to a NEW order.
+
+However, an existing order must not suddenly change because the menu item became unavailable.
+
+
+==================================================
+MODULE 2 — ORDER MANAGEMENT
+==================================================
+
+The cashier should be able to create an order.
+
+Features:
+
+- Add item
+- Remove item
+- Increase quantity
+- Decrease quantity
+- Show item price
+- Show line total
+- Calculate subtotal
+- Prevent unavailable items
+- Clear order
+- Start new order
+
+Example:
+
+Dal Tadka
+₹180 × 2 = ₹360
+
+Butter Naan
+₹60 × 4 = ₹240
+
+------------------
+Subtotal = ₹600
+
+
+Important:
+
+The plain order subtotal must be correct BEFORE applying:
+
+- Discounts
+- Packing
+- Delivery
+- GST
+
+
+==================================================
+MODULE 3 — PRICING ENGINE
+==================================================
+
+This is the HEART of the application.
+
+The pricing engine should be independent of the UI.
+
+Recommended calculation pipeline:
+
+Order
+  ↓
+Validate Order
+  ↓
+Calculate Line Item Totals
+  ↓
+Subtotal
+  ↓
+Determine Eligible Offers
+  ↓
+Apply Discounts
+  ↓
+Discounted Subtotal
+  ↓
+Packing Charge
+  ↓
+Delivery Fee
+  ↓
+Taxable Amount
+  ↓
+GST
+  ↓
+Final Payable Amount
+
+
+The main backend function should conceptually be:
+
+calculate_bill(order, pricing_context) -> BillResult
+
+
+The pricing engine must be:
+
+- Deterministic
+- Testable
+- Auditable
+- Independent from React
+- Independent from Django views where possible
+
+
+==================================================
+MODULE 4 — OFFERS & DISCOUNT ENGINE
+==================================================
+
+Offers should be represented as reusable rules rather than hardcoded into UI components.
+
+Example discount rule:
+
+DiscountRule
+
+- type
+- eligibility condition
+- percentage or fixed amount
+- maximum discount
+- priority
+- stacking behavior
+
+
+Example:
+
+Offer:
+10% off on orders above ₹500
+Maximum discount: ₹100
+
+For an order of:
+
+₹1,500
+
+10% = ₹150
+
+But maximum discount = ₹100
+
+Therefore:
+
+Actual discount = ₹100
+
+
+==================================================
+DISCOUNT STACKING
+==================================================
+
+This is an important business-rule decision.
+
+Suppose:
+
+Subtotal = ₹1,000
+
+Offer 1 = ₹50 flat discount
+Offer 2 = 10% discount
+
+Possible interpretations:
+
+Option A — Sequential stacking:
+
+₹1,000
+- ₹50
+= ₹950
+
+10% of ₹950
+= ₹95
+
+Final:
+₹855
+
+
+Option B — Independent calculation:
+
+₹50 + ₹100
+= ₹150 discount
+
+Final:
+₹850
+
+
+Option C — Only one offer:
+
+Best discount = ₹100
+
+Final:
+₹900
+
+
+The actual behavior must be determined from the assessment requirements.
+
+If the requirements are ambiguous, choose an explicit policy and document the assumption in REASONING.md.
+
+Do NOT leave this behavior hidden in code.
+
+
+==================================================
+MODULE 5 — PACKING CHARGE
+==================================================
+
+Every bill requires a packing charge.
+
+The charge should be configurable.
+
+Do not scatter hardcoded values across React components or Django views.
+
+For example:
+
+PACKING_CHARGE = ₹20
+
+The exact rule should be confirmed from the assessment requirements.
+
+
+==================================================
+MODULE 6 — DELIVERY FEE
+==================================================
+
+The problem states:
+
+There is a delivery fee unless the order is a large order.
+
+The implementation should represent this as an explicit rule.
+
+Example:
+
+DELIVERY_FEE = ₹50
+FREE_DELIVERY_THRESHOLD = ₹1000
+
+Therefore:
+
+Order < ₹1000
+    → Delivery fee applies
+
+Order >= ₹1000
+    → Free delivery
+
+
+If the actual assessment specifies different values, use those values.
+
+If not specified, choose reasonable assumptions and document them in REASONING.md.
+
+
+==================================================
+MODULE 7 — GST / TAX
+==================================================
+
+GST must be calculated accurately.
+
+The project specifically requires exact paisa-level calculation.
+
+Recommended approach:
+
+Represent money internally as INTEGER PAISE.
+
+Example:
+
+₹125.50
+=
+12550 paise
+
+
+₹10.00
+=
+1000 paise
+
+
+Avoid using floating point for monetary calculations.
+
+For example, do not rely on:
+
+0.1 + 0.2
+
+for billing calculations.
+
+
+Recommended internal representation:
+
+₹125.50 → 12550
+
+
+Then calculations can use integer arithmetic wherever possible.
+
+
+==================================================
+BILL BREAKDOWN
+==================================================
+
+The customer/cashier should not only see:
+
+TOTAL ₹766.50
+
+They should see how the total was calculated.
+
+Example:
+
+========================================
+RESTAURANT BILL
+========================================
+
+Item                 Qty       Amount
+----------------------------------------
+Dal Tadka             2        ₹360
+Butter Naan           4        ₹240
+Biryani               1        ₹320
+
+----------------------------------------
+Subtotal                       ₹920
+
+Offers:
+Flat ₹50 Off                  -₹50
+10% Off                       -₹92
+
+----------------------------------------
+Packing Charge                  ₹20
+Delivery Fee                    ₹50
+
+----------------------------------------
+Taxable Amount                 ₹848
+GST                             ₹42.40
+
+========================================
+TOTAL                          ₹890.40
+========================================
+
+
+This directly solves the problem of customers arguing about how the total was calculated.
+
+
+==================================================
+CALCULATION AUDIT TRAIL
+==================================================
+
+A strong feature would be returning calculation steps from the pricing engine.
+
+Example:
+
+Step 1
+Subtotal
+₹920.00
+
+Step 2
+Flat ₹50 discount
+-₹50.00
+
+Step 3
+10% discount
+-₹92.00
+
+Step 4
+Packing charge
++₹20.00
+
+Step 5
+Delivery fee
++₹50.00
+
+Step 6
+GST @ 5%
++₹42.40
+
+Final
+₹890.40
+
+
+The backend should therefore be capable of returning more than just:
+
+total = 89040
+
+
+It should return the components that explain the total.
+
+
+==================================================
+DATA MODELS
+==================================================
+
+MENU ITEM
+
+MenuItem
+
+Fields:
+
+- id
+- name
+- category
+- price_paise
+- is_available
+- created_at
+- updated_at
+
+
+ORDER
+
+Order
+
+Fields:
+
+- id
+- order_type
+- status
+- created_at
+- updated_at
+
+
+ORDER ITEM
+
+OrderItem
+
+Fields:
+
+- id
+- order
+- menu_item
+- item_name_snapshot
+- unit_price_paise_snapshot
+- quantity
+
+
+IMPORTANT:
+
+Store the item's name and price at the time the order is created.
+
+Example:
+
+Today:
+
+Paneer = ₹250
+
+Customer orders Paneer.
+
+Later restaurant changes price:
+
+Paneer = ₹300
+
+The old order must still use:
+
+₹250
+
+
+This preserves historical billing correctness.
+
+
+==================================================
+OFFER MODEL
+==================================================
+
+Offer
+
+Potential fields:
+
+- id
+- name
+- type
+- minimum_order_paise
+- discount_value
+- maximum_discount_paise
+- priority
+- is_active
+- stacking_policy
+- valid_from
+- valid_until
+
+
+The exact model can be adjusted after the pricing rules are finalized.
+
+
+==================================================
+PRICING CONFIGURATION
+==================================================
+
+Do not scatter magic numbers throughout the application.
+
+Avoid:
+
+₹50
+₹500
+₹100
+₹1000
+5%
+
+being directly hardcoded in many files.
+
+Create centralized configuration for:
+
+- GST rate
+- Packing charge
+- Delivery fee
+- Free-delivery threshold
+- Rounding policy
+- Other pricing rules
+
+
+==================================================
+BACKEND ARCHITECTURE
+==================================================
+
+Recommended Django project:
+
+backend/
+
+├── manage.py
+│
+├── config/
+│   ├── settings.py
+│   ├── urls.py
+│   └── ...
+│
+└── apps/
+    ├── menu/
+    ├── orders/
+    ├── offers/
+    └── billing/
+
+
+The pricing logic should live in a dedicated service layer.
+
+Example:
+
+apps/billing/services/
+
+├── calculator.py
+├── discounts.py
+├── fees.py
+├── tax.py
+└── money.py
+
+
+The Django views should NOT contain the full pricing logic.
+
+
+==================================================
+BACKEND PRICING ENGINE
+==================================================
+
+Main function:
+
+calculate_bill(order, pricing_context) -> BillResult
+
+
+Calculation:
+
+Validate order
+      ↓
+Line item totals
+      ↓
+Subtotal
+      ↓
+Eligible offers
+      ↓
+Discounts
+      ↓
+Discounted subtotal
+      ↓
+Packing charge
+      ↓
+Delivery fee
+      ↓
+Taxable amount
+      ↓
+GST
+      ↓
+Final total
+
+
+The pricing engine should be deterministic.
+
+Same:
+
+ORDER + PRICING RULES
+
+should always produce the same:
+
+BILL
+
+
+==================================================
+BACKEND BILL RESULT
+==================================================
+
+Conceptual response:
+
+{
+    "subtotal_paise": 92000,
+
+    "discounts": [
+        {
+            "offer_id": 1,
+            "name": "Flat ₹50 Off",
+            "amount_paise": 5000,
+            "reason": "Eligible"
+        }
+    ],
+
+    "discount_total_paise": 5000,
+
+    "packing_charge_paise": 2000,
+
+    "delivery_fee_paise": 5000,
+
+    "taxable_amount_paise": 84000,
+
+    "gst_paise": 4200,
+
+    "total_paise": 88200
+}
+
+
+The actual response shape can be refined during implementation.
+
+
+==================================================
+BACKEND REST APIs
+==================================================
+
+MENU
+
+GET
+/api/menu/items/
+
+POST
+/api/menu/items/
+
+GET
+/api/menu/items/:id/
+
+PATCH
+/api/menu/items/:id/
+
+DELETE
+/api/menu/items/:id/
+
+
+OFFERS
+
+GET
+/api/offers/
+
+POST
+/api/offers/
+
+GET
+/api/offers/:id/
+
+PATCH
+/api/offers/:id/
+
+DELETE
+/api/offers/:id/
+
+
+ORDERS
+
+POST
+/api/orders/
+
+GET
+/api/orders/
+
+GET
+/api/orders/:id/
+
+PATCH
+/api/orders/:id/
+
+
+BILLING
+
+POST
+/api/billing/preview/
+
+POST
+/api/billing/finalize/
+
+GET
+/api/billing/:order_id/
+
+
+IMPORTANT:
+
+preview:
+- Calculates the bill
+- Does not necessarily finalize the order/bill
+
+finalize:
+- Creates the authoritative completed bill
+
+
+==================================================
+FRONTEND ARCHITECTURE
+==================================================
+
+Frontend:
+
+React + TypeScript + Vite
+
+Recommended additional tools:
+
+- React Router
+- TanStack Query
+- Vitest
+- React Testing Library
+- Tailwind CSS or a suitable component library
+
+
+Suggested structure:
+
+frontend/
+
+├── src/
+│
+├── api/
+│   ├── client.ts
+│   ├── menu.ts
+│   ├── orders.ts
+│   ├── offers.ts
+│   └── billing.ts
+│
+├── components/
+│   ├── menu/
+│   ├── order/
+│   ├── offers/
+│   └── bill/
+│
+├── pages/
+│   ├── Dashboard/
+│   ├── NewOrder/
+│   ├── Bill/
+│   ├── Menu/
+│   └── Offers/
+│
+├── hooks/
+├── types/
+├── routes/
+├── utils/
+│
+└── App.tsx
+
+
+==================================================
+FRONTEND RESPONSIBILITIES
+==================================================
+
+React should handle:
+
+- Menu browsing
+- Menu search
+- Menu filtering
+- Item availability display
+- Creating an order
+- Editing quantities
+- Removing items
+- Viewing subtotal
+- Selecting/viewing offers
+- Requesting bill calculation
+- Displaying detailed bill
+- Loading states
+- Error states
+- Empty states
+- Responsive UI
+
+
+React should NOT calculate the authoritative final price.
+
+
+DO NOT do this:
+
+const discount = subtotal * 0.10;
+const delivery = subtotal > 1000 ? 0 : 50;
+const gst = ...;
+
+
+Instead:
+
+React
+    ↓
+POST /api/billing/preview/
+    ↓
+Django Pricing Engine
+    ↓
+Detailed Bill JSON
+    ↓
+React renders result
+
+
+==================================================
+FRONTEND SCREENS
+==================================================
+
+1. DASHBOARD
+
+Purpose:
+
+- Basic restaurant billing activity
+- Start a new order
+- Show recent bills
+- Show active offers
+- Optional daily statistics
+
+
+Possible layout:
+
+--------------------------------------
+Restaurant Bill Manager
+
+Today's Orders        42
+Today's Revenue       ₹28,450
+Active Offers         4
+
+[ NEW ORDER ]
+
+Recent Bills
+--------------------------------------
+#1024       ₹840.50
+#1023       ₹1,240.00
+#1022       ₹560.40
+--------------------------------------
+
+
+2. NEW ORDER
+
+Two-column layout:
+
+-----------------------------------------------
+MENU                    CURRENT ORDER
+-----------------------------------------------
+
+Search                  Dal Tadka × 2
+Category                Butter Naan × 4
+                        Biryani × 1
+
+Paneer                  Subtotal ₹920
+Dal Tadka
+Butter Naan             [Calculate Bill]
+Biryani
+-----------------------------------------------
+
+
+3. BILL PREVIEW
+
+Show:
+
+- Ordered items
+- Quantity
+- Unit price
+- Line total
+- Subtotal
+- Applied offers
+- Discount total
+- Packing charge
+- Delivery fee
+- Taxable amount
+- GST
+- Final total
+
+Also show WHY an offer was applied.
+
+
+4. MENU MANAGEMENT
+
+Features:
+
+- Create item
+- Edit item
+- Change price
+- Toggle availability
+- Search
+- Filter
+
+
+5. OFFERS MANAGEMENT
+
+Features:
+
+- List offers
+- Active/inactive status
+- Eligibility
+- Discount type
+- Discount cap
+- Priority
+- Create offer
+- Edit offer
+- Disable offer
+
+
+==================================================
+TESTING STRATEGY
+==================================================
+
+Testing is one of the highest priorities.
+
+The project's selling point is:
+
+"The billing screen can trust the calculation."
+
+
+BACKEND TESTS
+
+SUBTOTAL
+
+Test:
+
+- Single item
+- Multiple items
+- Multiple quantities
+
+
+DISCOUNTS
+
+Test:
+
+- Fixed discount
+- Percentage discount
+- Minimum order threshold
+- Maximum discount cap
+- Ineligible offer
+- Multiple offers
+- Stacking behavior
+- Discount cannot make subtotal negative
+
+
+FEES
+
+Test:
+
+- Packing charge
+- Delivery fee
+- Free delivery threshold
+- Boundary values
+
+
+GST
+
+Test:
+
+- Normal calculation
+- Rounding
+- Boundary values
+- Exact paisa output
+
+
+AVAILABILITY
+
+Test:
+
+- Available item can be ordered
+- Sold-out item cannot be newly ordered
+- Existing order retains price snapshot
+
+
+EDGE CASES
+
+Test:
+
+- ₹0 order
+- One item
+- Large quantity
+- ₹0 discount
+- Maximum discount
+- Multiple offers
+- Exactly ₹500
+- ₹499
+- Exactly ₹1000
+- ₹999
+- GST rounding cases
+
+
+REGRESSION TESTING
+
+Whenever a bug is discovered:
+
+1. Add a failing test.
+2. Fix the bug.
+3. Ensure the test passes.
+4. Keep the test permanently.
+
+
+==================================================
+PRICING INVARIANTS
+==================================================
+
+The pricing engine should maintain:
+
+subtotal >= 0
+
+discount_total >= 0
+
+discount_total <= subtotal
+
+fees >= 0
+
+tax >= 0
+
+final_total >= 0
+
+
+The final total should satisfy the documented calculation:
+
+final_total =
+    taxable_amount
+    + GST
+
+
+==================================================
+DEVELOPMENT ROADMAP
+==================================================
+
+PHASE 1 — REQUIREMENTS & ASSUMPTIONS
+
+Before coding:
+
+- Confirm pricing rules
+- Confirm discount stacking
+- Confirm discount priority
+- Confirm discount caps
+- Confirm fee rules
+- Confirm GST rate
+- Confirm GST calculation base
+- Confirm rounding rules
+- Confirm sold-out behavior
+- Confirm price snapshot behavior
+
+Deliverable:
+
+REASONING.md
+
+
+PHASE 2 — PROJECT SETUP
+
+Create:
+
+Frontend:
+- React
+- TypeScript
+- Vite
+
+Backend:
+- Django
+- Django REST Framework
+
+Database:
+- PostgreSQL
+
+Also configure:
+
+- Git
+- Environment variables
+- CORS
+- Formatting
+- Linting
+- Basic project structure
+
+
+PHASE 3 — DJANGO MODELS
+
+Implement:
+
+- MenuItem
+- Order
+- OrderItem
+- Offer
+- RestaurantPricingConfig
+- Bill
+
+
+PHASE 4 — PRICING ENGINE
+
+Implement:
+
+calculateSubtotal()
+
+calculateDiscounts()
+
+calculatePackingCharge()
+
+calculateDeliveryFee()
+
+calculateGST()
+
+calculateBill()
+
+
+Do NOT connect React yet.
+
+First make the pricing engine work independently.
+
+
+PHASE 5 — BACKEND TESTS
+
+Write comprehensive pricing tests.
+
+Do not move forward until the core calculation is reliable.
+
+
+PHASE 6 — REST APIs
+
+Implement:
+
+- Menu APIs
+- Order APIs
+- Offer APIs
+- Billing preview API
+- Billing finalize API
+- Bill retrieval API
+
+
+PHASE 7 — REACT SETUP
+
+Create:
+
+- React app
+- Routing
+- API client
+- Layout
+- Shared components
+- Error/loading states
+
+
+PHASE 8 — MENU UI
+
+Implement:
+
+- Menu listing
+- Search
+- Filter
+- Availability
+- Add item
+
+
+PHASE 9 — ORDER UI
+
+Implement:
+
+- Cart
+- Quantity control
+- Remove item
+- Subtotal
+- Order validation
+
+
+PHASE 10 — BILLING UI
+
+Connect:
+
+React
+    ↓
+POST /api/billing/preview/
+    ↓
+Pricing Engine
+    ↓
+Bill Result
+    ↓
+Bill UI
+
+
+PHASE 11 — OFFERS UI
+
+Implement:
+
+- Active offers
+- Eligibility
+- Applied offers
+- Discount explanation
+- Offer management
+
+
+PHASE 12 — FINAL POLISH
+
+Add:
+
+- Responsive design
+- Error handling
+- Empty states
+- Loading states
+- Currency formatting
+- Print bill
+- Optional PDF/download
+- Accessibility improvements
+
+
+PHASE 13 — DOCUMENTATION
+
+Create:
+
+README.md
+
+REASONING.md
+
+AI_LOG.md
+
+
+Ensure:
+
+- checkpoint-base tag exists
+- final state exists
+- documentation is complete
+
+
+==================================================
+REPOSITORY STRUCTURE
+==================================================
+
+restaurant-bill-manager/
+
+├── README.md
+├── REASONING.md
+├── AI_LOG.md
+├── .gitignore
+│
+├── frontend/
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src/
+│       ├── api/
+│       ├── components/
+│       ├── pages/
+│       ├── hooks/
+│       ├── types/
+│       ├── routes/
+│       └── utils/
+│
+├── backend/
+│   ├── manage.py
+│   ├── requirements.txt
+│   ├── config/
+│   └── apps/
+│       ├── menu/
+│       ├── orders/
+│       ├── offers/
+│       └── billing/
+│
+├── docs/
+│   └── PRICING_RULES.md
+│
+└── tests/
+
+
+==================================================
+PRIORITY
+==================================================
+
+Priority ranking:
+
+1. Pricing correctness
+2. Money and rounding
+3. Discount rules
+4. Automated tests
+5. Bill breakdown
+6. Menu availability
+7. Clean architecture
+8. UI/UX
+9. Dashboard analytics
+10. Fancy animations
+
+
+DO NOT spend most of the project time on visual polish while the pricing engine is untested.
+
+
+==================================================
+HANDLING THE TWIST
+==================================================
+
+The assessment specifically asks:
+
+"How I handled the twist"
+
+Therefore, the system should not be rigidly designed around only today's four offers.
+
+Offers should be extensible.
+
+Possible offer structure:
+
+Offer
+    ├── fixed_discount
+    ├── percentage_discount
+    ├── minimum_order
+    ├── maximum_discount
+    ├── eligibility
+    ├── priority
+    └── stacking_behavior
+
+
+This means a new marketing offer can be added without rewriting the entire pricing engine.
+
+
+==================================================
+KEY ARCHITECTURAL PRINCIPLE
+==================================================
+
+UI should ask the pricing engine for the answer.
+
+The UI should NOT decide the answer.
+
+
+Correct architecture:
+
+                  React
+                    │
+                    │ REST API
+                    ▼
+               Django + DRF
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+      Database          Pricing Engine
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+                  Offers              Fees
+                    │                   │
+                    └─────────┬─────────┘
+                              │
+                             GST
+                              │
+                              ▼
+                       Detailed Bill
+
+
+The pricing engine should be:
+
+- Pure where possible
+- Deterministic
+- Independently testable
+- Explicit about every rule
+- Auditable
+- Safe for exact-paisa calculations
+
+
+==================================================
+FINAL PRODUCT FLOW
+==================================================
+
+Cashier opens Restaurant Bill Manager
+
+        ↓
+
+Selects / searches menu
+
+        ↓
+
+Adds items to order
+
+        ↓
+
+Unavailable items cannot be selected
+
+        ↓
+
+Order subtotal is calculated
+
+        ↓
+
+Cashier requests bill preview
+
+        ↓
+
+Backend validates order
+
+        ↓
+
+Pricing engine calculates:
+
+    Subtotal
+        ↓
+    Discounts
+        ↓
+    Packing
+        ↓
+    Delivery
+        ↓
+    Taxable Amount
+        ↓
+    GST
+        ↓
+    Final Total
+
+        ↓
+
+React displays complete breakdown
+
+        ↓
+
+Cashier can explain every rupee/paisa
+
+        ↓
+
+Cashier finalizes bill
+
+
+==================================================
+WHAT SHOULD BE BUILT FIRST
+==================================================
+
+DO NOT START WITH THE DASHBOARD.
+
+Start with:
+
+1. Project setup
+2. Django models
+3. Pricing engine
+4. Pricing tests
+5. APIs
+6. React UI
+7. Integration
+8. Documentation
+
+
+The most important component is:
+
+Django Pricing Engine
+
+because the entire product promise is:
+
+"Build a pricing engine the billing screen can trust."
+
+
+==================================================
+END OF PROJECT PLAN
+
+
+USER:
+when i am clicking the finalize tbie
+
+ASSISTANT:
+I’ll trace the finalize flow in the app to find the exact click handler and the failing logic behind it.
+
+USER:
+i wanted to show it one payment screen make it static now...
+
+ASSISTANT:
+The finalize flow is currently backend-only: it saves the bill, then leaves the user on the order panel with a success message. I’m checking the nearby tests and styles now; the smallest change is likely to render a single static payment view after finalize succeeds, without adding another route or payment API.
+
+ASSISTANT:
+The local contract is clear: finalized is the only state that controls the post-finalize UI, and there is no existing payment route or type to preserve. I’ll add a static payment screen in that state, showing the finalized total, payment method choices, and a disabled-looking confirmation action; then I’ll cover the finalize click path with a focused test.
+
+USER:
+Payment
+
+## Ready to collect.
+Order #11 is finalized and waiting for payment.
+
+Finalized
+Amount due
+
+₹606.90Includes discounts, fees, and GST
+### Choose payment method
+Payment processing will be connected later.
+
+₹CashCollect at the counter✓▣CardTerminal payment⌁UPIScan to pay
+Record payment
+enable the option clickable Record Payment
+
+ASSISTANT:
+The cause is exact: the button is hard-coded with disabled, and PaymentScreen has no payment state. I’ll add a local recorded state, make the button clickable, and change its label/status after the click so the interaction is visible without claiming server persistence.
+
+ASSISTANT:
+The button is now enabled and has a local paid state. I’m running the existing focused test immediately; its old disabled assertion should expose the expected contract change, then I’ll update that assertion to verify the click result.
+
+ASSISTANT:
+The focused test failed exactly on the obsolete expectation, confirming the implementation is reaching the new behavior. I’m replacing that assertion with a real click-and-confirm check, then I’ll rerun the same test file before the full build.
+
+ASSISTANT:
+The payment view is now wired into the finalize state. The visual layer is now in place with a responsive two-column payment layout that collapses cleanly on mobile. Focused tests and the production build passed.
+
+USER:
+after payment recorded it should redirect me to the new order page
+
+ASSISTANT:
+I’ll change the payment action from a local “paid” state to navigation back to /new-order after the click. I’ll update the existing flow test to assert the new-order screen appears, then run that focused test and the build.
+
+ASSISTANT:
+The implementation is correct, but the test harness renders NewOrder directly outside a route, so navigating changes the URL without replacing that component. I’m fixing the test wrapper to render the component through /new-order; this will make the assertion reflect real app routing rather than the test shortcut.
+
+ASSISTANT:
+The route stays on /new-order, so React preserves the same NewOrder instance; navigating to the same path alone cannot reset the finalized state. I’m correcting the owning state boundary: the payment screen will notify NewOrder to clear the completed order and return to its fresh order view, which is the actual redirect behavior the user sees.
+
+ASSISTANT:
+The reset now happens in NewOrder, clearing the bill and items so the user returns to a clean new-order workspace after recording payment. Focused payment redirect tests and the production build passed.
+
+USER:
+Hey add this chat into Chat_logs.txt file please include this full chat to that file
+
+ASSISTANT:
+I’ll inspect the existing Chat_logs.text format, then append this conversation in the same style without changing earlier entries.
+
+ASSISTANT:
+The log is a planning document rather than a strict transcript, so I’ll append a clearly labeled conversation section at the end and preserve the existing content exactly.
+
+ASSISTANT:
+I found the document ending at the project-plan marker. I’m appending the complete user/assistant conversation, including the payment-screen changes and validation results, under a separate transcript heading.
+
+ASSISTANT:
+The transcript has been appended without altering the original project plan. I’m doing a final tail check to confirm the new section is present and ends cleanly.
+
+ASSISTANT:
+Added the full conversation transcript to Chat_logs.text. The existing project plan was preserved, and the new transcript was appended at the end.
+
+USER:
+no transcript just add all the chat we did in this chat
+==================================================
